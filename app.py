@@ -18,6 +18,7 @@ import cycling
 import demo_data
 import openalex_client as oa
 import synthesis
+import zenodo_data
 
 st.set_page_config(page_title="Battery Lab", page_icon="🔋", layout="wide")
 
@@ -34,7 +35,7 @@ TEMATY_DOMYSLNE = (
 
 def wyglad(fig: go.Figure, wysokosc: int = 380, **kwargs) -> go.Figure:
     fig.update_layout(template=SZABLON, height=wysokosc, margin=dict(l=10, r=10, t=50, b=10),
-                      legend=dict(orientation="h", yanchor="top", y=-0.22, x=0, title=None), **kwargs)
+                      legend=dict(orientation="h", yanchor="top", y=-0.3, x=0, title=None), **kwargs)
     return fig
 
 
@@ -77,6 +78,11 @@ def analiza_demo() -> dict[str, tuple[pd.DataFrame, float, pd.DataFrame]]:
         std = cycling.standaryzuj(surowe, cycling.zgadnij_kolumny(list(surowe.columns)))
         wynik[nazwa] = (std, masa, cycling.podsumowanie_cykli(std, masa))
     return wynik
+
+
+@st.cache_data(ttl=7 * 86400, show_spinner=False)
+def dane_rzeczywiste():
+    return zenodo_data.dane_namnhcf()
 
 
 @st.cache_data(show_spinner=False)
@@ -255,9 +261,26 @@ def zakladka_literatura(klucz: str) -> None:
 # ---------------------------------------------------------------------------------------------
 
 def wczytaj_ogniwa() -> dict[str, tuple[pd.DataFrame, float, pd.DataFrame]]:
-    zrodlo = st.segmented_control("Źródło danych", ["Dane demonstracyjne", "Moje pliki z cyklera"],
-                                  default="Dane demonstracyjne", required=True)
-    if zrodlo == "Dane demonstracyjne":
+    zrodla = ["Prawdziwe dane: NaMnHCF (KIT)", "Dane symulowane", "Moje pliki z cyklera"]
+    zrodlo = st.segmented_control("Źródło danych", zrodla, default=zrodla[0], required=True)
+    if zrodlo == zrodla[0]:
+        try:
+            with st.spinner("Pobieram dane z repozytorium Zenodo…"):
+                ogniwa, meta = dane_rzeczywiste()
+        except zenodo_data.BladZenodo as blad:
+            st.error(f"Nie udało się pobrać danych: {blad}. Wybierz dane symulowane albo wgraj własne pliki.")
+            return {}
+        autorzy = meta["autorzy"][0] if meta["autorzy"] else ""
+        st.info(
+            f"**Dane rzeczywiste** z publikacji: *{meta['tytul']}* ({autorzy} i in., KIT, {meta['data'][:4]}). "
+            f"Katoda NaMnHCF – analog błękitu pruskiego – w półogniwie z sodem oraz w ogniwach pełnych z twardym "
+            f"węglem przy różnych elektrolitach i zakresach napięcia. Pobrane przez API Zenodo, "
+            f"[DOI {meta['doi']}](https://doi.org/{meta['doi']}), licencja {meta['licencja'].upper()}. "
+            "Co ok. 52 cykle wykonywano cykle kontrolne przy niższym prądzie (C/20) – widać je jako skoki pojemności."
+        )
+        return ogniwa
+
+    if zrodlo == zrodla[1]:
         k1, k2 = st.columns([4, 1])
         k1.info("Dane symulowane: trzy ogniwa połówkowe z katodą typu PBA (model z dwoma plateau napięciowymi, "
                 "rosnącą polaryzacją i spadkiem pojemności). Służą do pokazania analiz – wgraj własne pliki, "
@@ -328,7 +351,7 @@ def sekcja_przeglad(ogniwa: dict, cykl_ref: int, prog: int) -> None:
         st.warning("Żadne ogniwo nie ma tylu cykli, ile wynosi cykl odniesienia.")
         return
 
-    kpi = pd.DataFrame(wiersze)
+    kpi = pd.DataFrame(wiersze).dropna(axis=1, how="all")
     st.dataframe(
         kpi, hide_index=True,
         column_config={
@@ -352,13 +375,18 @@ def sekcja_przeglad(ogniwa: dict, cykl_ref: int, prog: int) -> None:
                            name=nazwa)
     fig_q.update_layout(title="Pojemność rozładowania", xaxis_title="cykl", yaxis_title=f"Q [{jednostka}]")
     fig_ce.update_layout(title="Wydajność kulombowska", xaxis_title="cykl", yaxis_title="CE [%]")
+    ma_ce = any(t["CE [%]"].notna().any() for _, _, t in ogniwa.values())
     ce_stabilne = pd.concat([t.loc[t["cykl"] >= 3, "CE [%]"] for _, _, t in ogniwa.values()]).dropna()
     if len(ce_stabilne):
         fig_ce.update_yaxes(range=[max(80.0, ce_stabilne.quantile(0.01) - 0.3), 100.2])
     fig_ce.add_annotation(text="1. cykl poza skalą – patrz „Pierwsza CE” w tabeli", xref="paper", yref="paper",
                           x=0, y=0.02, showarrow=False, font=dict(size=11, color="#888"), xanchor="left")
-    k1.plotly_chart(wyglad(fig_q, 400))
-    k2.plotly_chart(wyglad(fig_ce, 400))
+    legenda_nisko = dict(legend=dict(orientation="h", yanchor="top", y=-0.42, x=0, title=None))
+    if ma_ce:
+        k1.plotly_chart(wyglad(fig_q, 440).update_layout(**legenda_nisko))
+        k2.plotly_chart(wyglad(fig_ce, 440).update_layout(**legenda_nisko))
+    else:
+        st.plotly_chart(wyglad(fig_q, 480).update_layout(**legenda_nisko))
 
 
 def sekcja_model(ogniwa: dict, cykl_ref: int, prog: int, frakcja: int) -> None:
@@ -368,7 +396,16 @@ def sekcja_model(ogniwa: dict, cykl_ref: int, prog: int, frakcja: int) -> None:
     nazwa = st.selectbox("Ogniwo", list(ogniwa), key="model_ogniwo")
     tabela = ogniwa[nazwa][2]
     kol = cycling.kolumna_pojemnosci(tabela)
-    dane = tabela[tabela["cykl"] >= cykl_ref]
+    dane = tabela[tabela["cykl"] >= cykl_ref].dropna(subset=[kol])
+    odstajace = cycling.cykle_odstajace(dane[kol].to_numpy(float))
+    pomin = False
+    if odstajace.any():
+        pomin = st.checkbox(
+            f"Pomiń w modelu {int(odstajace.sum())} odstających cykli (np. cykle kontrolne przy innym prądzie)",
+            value=True, help="Cykle, których pojemność odbiega o ponad 3% od mediany sąsiednich cykli.")
+    wykluczone = dane[odstajace] if pomin else dane.iloc[0:0]
+    if pomin:
+        dane = dane[~odstajace]
     if len(dane) < 10:
         st.warning("Do modelowania potrzeba co najmniej 10 cykli od cyklu odniesienia.")
         return
@@ -386,7 +423,7 @@ def sekcja_model(ogniwa: dict, cykl_ref: int, prog: int, frakcja: int) -> None:
 
     k1, k2 = st.columns([1, 2])
     horyzont = k1.number_input("Horyzont prognozy [cykle]", min_value=int(x[-1]) + 10,
-                               value=int(max(3 * x[-1], 500)), step=100)
+                               value=int(max(2 * x[-1], x[-1] + 200)), step=100)
     nazwa_modelu = k1.radio(
         "Model", porownanie["model"].tolist(),
         format_func=lambda m: f"{m}  ⭐ najlepszy (AIC)" if m == porownanie["model"].iloc[0] else m,
@@ -409,15 +446,20 @@ def sekcja_model(ogniwa: dict, cykl_ref: int, prog: int, frakcja: int) -> None:
 
     fig = go.Figure()
     siatka = wynik["siatka"] + start
-    fig.add_scatter(x=np.r_[siatka, siatka[::-1]], y=np.r_[wynik["gorna"], wynik["dolna"][::-1]], fill="toself",
+    fig.add_scatter(x=np.r_[siatka, siatka[::-1]],
+                    y=np.maximum(np.r_[wynik["gorna"], wynik["dolna"][::-1]], 0), fill="toself",
                     fillcolor="rgba(46,134,171,0.15)", line=dict(width=0), name="przedział 95%", hoverinfo="skip")
     fig.add_scatter(x=dane["cykl"], y=y, mode="markers", marker=dict(size=4, color="#333"), name="pomiar")
-    fig.add_scatter(x=siatka, y=wynik["krzywa"], mode="lines", line=dict(color=KOLORY[0], width=2.5),
+    if len(wykluczone):
+        fig.add_scatter(x=wykluczone["cykl"], y=wykluczone[kol], mode="markers", name="pominięte",
+                        marker=dict(size=7, color="rgba(0,0,0,0)", line=dict(color=KOLORY[1], width=1.5)))
+    fig.add_scatter(x=siatka, y=np.maximum(wynik["krzywa"], 0), mode="lines", line=dict(color=KOLORY[0], width=2.5),
                     name=f"model {nazwa_modelu}")
     fig.add_hline(y=prog_q, line_dash="dash", line_color=KOLORY[1], annotation_text=f"{prog}% pojemności")
     if eol is not None:
         fig.add_vline(x=eol + start, line_dash="dot", line_color=KOLORY[1])
     fig.update_layout(title=f"{nazwa}: prognoza pojemności", xaxis_title="cykl", yaxis_title=kol)
+    fig.update_yaxes(range=[0, float(max(y.max(), wykluczone[kol].max() if len(wykluczone) else 0)) * 1.08])
     k2.plotly_chart(wyglad(fig, 430))
 
     tabela_modeli = porownanie.drop(columns=["parametry"]).copy()
@@ -448,7 +490,7 @@ def sekcja_model(ogniwa: dict, cykl_ref: int, prog: int, frakcja: int) -> None:
 def sekcja_krzywe(ogniwa: dict) -> None:
     st.markdown("### ⚡ Krzywe napięciowe i analiza dQ/dV")
     z_napieciem = {n: v for n, v in ogniwa.items()
-                   if v[0]["voltage"].notna().any() and v[0].groupby("cycle").size().max() > 5}
+                   if v[0] is not None and v[0]["voltage"].notna().any() and v[0].groupby("cycle").size().max() > 5}
     if not z_napieciem:
         st.info("Krzywe napięciowe wymagają surowych danych z napięciem (wiele punktów na cykl).")
         return
@@ -456,9 +498,12 @@ def sekcja_krzywe(ogniwa: dict) -> None:
     k1, k2, k3 = st.columns([2, 3, 1])
     nazwa = k1.selectbox("Ogniwo", list(z_napieciem), key="krzywe_ogniwo")
     std, masa, tabela = z_napieciem[nazwa]
-    dostepne = tabela["cykl"].tolist()
-    domyslne = [c for c in (1, 10, 50, 100, 150, 200, dostepne[-1]) if c in dostepne]
-    cykle = k2.multiselect("Cykle", dostepne, default=sorted(set(domyslne)))
+    dostepne = sorted(std.loc[std["voltage"].notna(), "cycle"].unique().tolist())
+    if len(dostepne) <= 8:
+        domyslne = dostepne
+    else:
+        domyslne = [c for c in (1, 10, 50, 100, 150, 200, dostepne[-1]) if c in dostepne]
+    cykle = k2.multiselect("Cykle", dostepne, default=sorted(set(domyslne)), key=f"cykle_{nazwa}")
     etap = k3.radio("Etap dQ/dV", ["rozładowanie", "ładowanie"])
     if not cykle:
         return

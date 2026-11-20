@@ -188,6 +188,24 @@ def podsumowanie_cykli(dane: pd.DataFrame, masa_mg: float | None = None) -> pd.D
     return tabela
 
 
+def tabela_z_pojemnosci(cykle: np.ndarray, q_mah_g: np.ndarray) -> pd.DataFrame:
+    """Tabela cykli w formacie aplikacji, gdy znana jest tylko pojemność właściwa rozładowania (np. dane z publikacji)."""
+    puste = np.full(len(cykle), np.nan)
+    return pd.DataFrame({
+        "cykl": np.asarray(cykle, dtype=int),
+        "Q_ład [mAh]": puste, "Q_rozł [mAh]": puste, "E_ład [mWh]": puste, "E_rozł [mWh]": puste,
+        "CE [%]": puste, "Wydajność energetyczna [%]": puste, "Śr. napięcie rozł. [V]": puste,
+        "Q_rozł [mAh/g]": np.asarray(q_mah_g, dtype=float), "Q_ład [mAh/g]": puste,
+    })
+
+
+def cykle_odstajace(pojemnosc: np.ndarray, prog: float = 0.03, okno: int = 9) -> np.ndarray:
+    """Cykle odbiegające od lokalnej mediany o więcej niż `prog` (np. cykle kontrolne przy innym prądzie, zakłócenia)."""
+    seria = pd.Series(np.asarray(pojemnosc, dtype=float))
+    mediana = seria.rolling(okno, center=True, min_periods=3).median()
+    return (np.abs(seria / mediana - 1) > prog).to_numpy()
+
+
 def kolumna_pojemnosci(tabela: pd.DataFrame) -> str:
     return "Q_rozł [mAh/g]" if "Q_rozł [mAh/g]" in tabela.columns else "Q_rozł [mAh]"
 
@@ -345,21 +363,29 @@ def test_wsteczny(model: Model, x: np.ndarray, y: np.ndarray, frakcja: float) ->
     }
 
 
-def krzywa_dqdv(q: np.ndarray, v: np.ndarray, punkty: int = 400, okno: int = 31) -> tuple[np.ndarray, np.ndarray]:
-    """Analiza pojemności przyrostowej: dQ/dV na równomiernej siatce napięcia, wygładzona filtrem Savitzky'ego-Golaya."""
+def krzywa_dqdv(q: np.ndarray, v: np.ndarray, krok_v: float = 0.005, okno: int = 9) -> tuple[np.ndarray, np.ndarray]:
+    """Analiza pojemności przyrostowej metodą binowania napięcia.
+
+    Przyrosty pojemności między kolejnymi pomiarami sumowane są w przedziałach napięcia o szerokości `krok_v`,
+    a wynik wygładzany filtrem Savitzky'ego-Golaya. Metoda jest odporna na szum i niemonotoniczność napięcia.
+    Znak: dodatni dla ładowania, ujemny dla rozładowania.
+    """
+    q = np.asarray(q, dtype=float)
+    v = np.asarray(v, dtype=float)
     if len(q) < 10:
         return np.array([]), np.array([])
-    kolejnosc = np.argsort(v)
-    v_s, q_s = v[kolejnosc], q[kolejnosc]
-    v_s, unikalne = np.unique(v_s, return_index=True)
-    q_s = q_s[unikalne]
-    siatka = np.linspace(v_s.min(), v_s.max(), punkty)
-    q_siatka = np.interp(siatka, v_s, q_s)
-    okno = min(okno, punkty - (1 - punkty % 2))
-    if okno % 2 == 0:
-        okno -= 1
-    q_gladkie = savgol_filter(q_siatka, okno, 3)
-    return siatka, np.gradient(q_gladkie, siatka)
+    dq = np.diff(q)
+    v_srodek = (v[1:] + v[:-1]) / 2
+    maska = dq > 0
+    v_min, v_max = float(np.min(v)), float(np.max(v))
+    liczba_binow = max(int(round((v_max - v_min) / krok_v)), 10)
+    suma, krawedzie = np.histogram(v_srodek[maska], bins=liczba_binow, range=(v_min, v_max), weights=dq[maska])
+    srodki = (krawedzie[:-1] + krawedzie[1:]) / 2
+    gestosc = suma / (krawedzie[1] - krawedzie[0])
+    if len(gestosc) > okno:
+        gestosc = savgol_filter(gestosc, okno, 2)
+    znak = -1.0 if v[-1] < v[0] else 1.0
+    return srodki, znak * gestosc
 
 
 def piki_dqdv(v: np.ndarray, dqdv: np.ndarray, czulosc: float = 0.15) -> list[float]:

@@ -49,7 +49,7 @@ def _q_od_v(v: np.ndarray, plateau: tuple[float, float], udzial: float, szerokos
     return (q - q.min()) / (q.max() - q.min())
 
 
-def symuluj_ogniwo(p: ParametryOgniwa, liczba_cykli: int = 250, punkty: int = 70) -> pd.DataFrame:
+def symuluj_ogniwo(p: ParametryOgniwa, liczba_cykli: int = 250, punkty: int = 160) -> pd.DataFrame:
     rng = np.random.default_rng(p.seed)
     v_siatka = np.linspace(2.0, 4.0, 600)
     prad_ma = p.q0_mah_g * p.masa_mg / 1000
