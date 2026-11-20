@@ -22,8 +22,8 @@ import zenodo_data
 
 st.set_page_config(page_title="Battery Lab", page_icon="🔋", layout="wide")
 
-KOLORY = ["#2E86AB", "#E4572E", "#76B041", "#9B5DE5", "#F4A261", "#17BEBB", "#6C757D"]
-SZABLON = "plotly_white"
+KOLORY = ["#3FA7D6", "#E4572E", "#76B041", "#9B5DE5", "#F4A261", "#17BEBB", "#ADB5BD"]
+SZABLON = "plotly_dark"
 ROK = date.today().year
 TEMATY_DOMYSLNE = (
     "Prussian blue sodium cathode\n"
@@ -34,7 +34,8 @@ TEMATY_DOMYSLNE = (
 
 
 def wyglad(fig: go.Figure, wysokosc: int = 380, **kwargs) -> go.Figure:
-    fig.update_layout(template=SZABLON, height=wysokosc, margin=dict(l=10, r=10, t=50, b=10),
+    fig.update_layout(template=SZABLON, paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                      height=wysokosc, margin=dict(l=10, r=10, t=50, b=10),
                       legend=dict(orientation="h", yanchor="top", y=-0.3, x=0, title=None), **kwargs)
     return fig
 
@@ -156,7 +157,7 @@ def zakladka_literatura(klucz: str) -> None:
 
     trend["okres"] = np.where(trend["rok"] == ROK, f"{ROK} (rok niepełny)", "pełny rok")
     fig = px.bar(trend, x="rok", y="liczba", color="okres", title="Liczba publikacji w kolejnych latach",
-                 color_discrete_map={"pełny rok": KOLORY[0], f"{ROK} (rok niepełny)": "#A9CCE3"})
+                 color_discrete_map={"pełny rok": KOLORY[0], f"{ROK} (rok niepełny)": "#1F5F7F"})
     fig.update_layout(xaxis_title=None, yaxis_title="publikacje", legend_title=None)
     st.plotly_chart(wyglad(fig))
 
@@ -448,8 +449,8 @@ def sekcja_model(ogniwa: dict, cykl_ref: int, prog: int, frakcja: int) -> None:
     siatka = wynik["siatka"] + start
     fig.add_scatter(x=np.r_[siatka, siatka[::-1]],
                     y=np.maximum(np.r_[wynik["gorna"], wynik["dolna"][::-1]], 0), fill="toself",
-                    fillcolor="rgba(46,134,171,0.15)", line=dict(width=0), name="przedział 95%", hoverinfo="skip")
-    fig.add_scatter(x=dane["cykl"], y=y, mode="markers", marker=dict(size=4, color="#333"), name="pomiar")
+                    fillcolor="rgba(63,167,214,0.22)", line=dict(width=0), name="przedział 95%", hoverinfo="skip")
+    fig.add_scatter(x=dane["cykl"], y=y, mode="markers", marker=dict(size=4, color="#D0D0D0"), name="pomiar")
     if len(wykluczone):
         fig.add_scatter(x=wykluczone["cykl"], y=wykluczone[kol], mode="markers", name="pominięte",
                         marker=dict(size=7, color="rgba(0,0,0,0)", line=dict(color=KOLORY[1], width=1.5)))
@@ -479,7 +480,7 @@ def sekcja_model(ogniwa: dict, cykl_ref: int, prog: int, frakcja: int) -> None:
         fig.add_scatter(x=dane["cykl"], y=y, mode="markers", marker=dict(size=4, color="#999"), name="pomiar")
         fig.add_scatter(x=test["x_test"] + start, y=test["prognoza"], mode="lines",
                         line=dict(color=KOLORY[2], width=2.5), name="prognoza z wcześniejszych cykli")
-        fig.add_vrect(x0=start, x1=start + x[test["granica"] - 1], fillcolor="rgba(118,176,65,0.10)", line_width=0,
+        fig.add_vrect(x0=start, x1=start + x[test["granica"] - 1], fillcolor="rgba(118,176,65,0.16)", line_width=0,
                       annotation_text="dane do nauki", annotation_position="top left")
         fig.update_layout(title=f"Test wsteczny: model uczony na pierwszych {frakcja}% cykli · "
                                 f"średni błąd prognozy (MAPE) = {test['MAPE [%]']:.2f}%",
@@ -510,7 +511,7 @@ def sekcja_krzywe(ogniwa: dict) -> None:
 
     przelicznik = 1000 / masa if masa > 0 else 1.0
     jednostka = "mAh/g" if masa > 0 else "mAh"
-    kolory = px.colors.sample_colorscale("Viridis", [i / max(len(cykle) - 1, 1) for i in range(len(cykle))])
+    kolory = px.colors.sample_colorscale("Plasma", [0.35 + 0.6 * i / max(len(cykle) - 1, 1) for i in range(len(cykle))])
 
     fig_v, fig_d = go.Figure(), go.Figure()
     piki = []
