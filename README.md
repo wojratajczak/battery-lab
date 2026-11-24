@@ -137,8 +137,10 @@ polaryzacji, a zanik lub poszerzenie o zmianach w strukturze materiału.
 - **Odczynniki laboratorium:** domyślnymi prekursorami są odczynniki dostępne w laboratorium (lista
   `ODCZYNNIKI_LABORATORIUM` w `synthesis.py`). W tabeli naważek widać, które pozycje są z tej listy,
   a te spoza niej aplikacja wypisuje osobno. Odczynniki mają polskie nazwy.
-- **NaCl (opcjonalnie):** dodatkowe źródło sodu, podawane w mmol, w roztworze A lub B. Aplikacja przelicza
-  ilość na stężenie i masę.
+- **Roztwory:** A to heksacyjanożelazian z opcjonalnym NaCl (nadmiar sodu), a B to sole metali z cytrynianem
+  sodu.
+- **NaCl (opcjonalnie):** podawany w mmol. Aplikacja przelicza go na stężenie i masę, a powyżej ok. 5,4 mol/L
+  (roztwór nasycony w 25 °C) ostrzega o przekroczeniu rozpuszczalności.
 - **Entropia konfiguracyjna podsieci M:** S = −R·Σ xᵢ·ln xᵢ. Materiał jest niskoentropowy dla S < 1R,
   średnioentropowy dla 1R ≤ S < 1,5R i wysokoentropowy dla S ≥ 1,5R.
 - **Pojemność teoretyczna:** Q = n·F / (3,6·M) [mAh/g], gdzie n = min(x, 1 + Σ xᵢ) po metalach aktywnych

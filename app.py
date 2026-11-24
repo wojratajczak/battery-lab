@@ -611,8 +611,8 @@ def zakladka_ogniwa() -> None:
 def zakladka_synteza() -> None:
     st.subheader("⚗️ Kalkulator syntezy HE-PBA metodą współstrącania")
     st.caption("Naważki odczynników dla NaₓM[Fe(CN)₆]·yH₂O, gdzie M to mieszanina metali. "
-               "Roztwór A: sole metali (+ cytrynian sodu jako czynnik chelatujący spowalniający krystalizację), "
-               "roztwór B: heksacyjanożelazian.")
+               "Roztwór A: heksacyjanożelazian z opcjonalnym NaCl (nadmiar sodu), roztwór B: sole metali "
+               "(+ cytrynian sodu jako czynnik chelatujący spowalniający krystalizację).")
 
     lewa, prawa = st.columns([1.3, 1])
     with lewa:
@@ -644,19 +644,28 @@ def zakladka_synteza() -> None:
         stosunek_cytr = k3.number_input("cytrynian : M", min_value=0.0, value=1.0, step=0.5)
         k1, k2, k3 = st.columns(3)
         heks = k1.selectbox("Heksacyjanożelazian", list(synthesis.HEKSACYJANOZELAZIANY))
-        v_a = k2.number_input("Objętość roztworu A [mL]", min_value=1.0, value=100.0, step=10.0)
-        v_b = k3.number_input("Objętość roztworu B [mL]", min_value=1.0, value=100.0, step=10.0)
+        v_a = k2.number_input("Roztwór A: Fe(CN)₆ + NaCl [mL]", min_value=1.0, value=100.0, step=10.0)
+        v_b = k3.number_input("Roztwór B: sole metali [mL]", min_value=1.0, value=100.0, step=10.0)
         k1, k2 = st.columns(2)
         sod = k1.number_input("Zakładana zawartość Na (x)", min_value=0.0, max_value=2.0, value=1.5, step=0.1)
         woda = k2.number_input("Woda krystalizacyjna (y)", min_value=0.0, max_value=6.0, value=2.0, step=0.5)
         k1, k2 = st.columns(2)
-        nacl = k1.number_input("NaCl [mmol] (0 = bez NaCl)", min_value=0.0, value=0.0, step=10.0,
-                               help="Chlorek sodu jako dodatkowe źródło sodu, zwiększa zawartość Na w produkcie.")
-        roztwor_nacl = k2.selectbox("NaCl w roztworze", ["B", "A"], disabled=nacl == 0)
+        nacl = k1.number_input("NaCl w roztworze A [mmol] (0 = bez NaCl)", min_value=0.0, value=0.0, step=10.0,
+                               help="Chlorek sodu dodawany do roztworu heksacyjanożelazianu, żeby zapewnić "
+                                    "nadmiar sodu.")
         if nacl > 0:
-            v_nacl = v_a if roztwor_nacl == "A" else v_b
-            k1.caption(f"= {nacl / v_nacl:.2f} mol/L w roztworze {roztwor_nacl}, "
-                       f"{nacl * synthesis.masa_molowa(synthesis.CHLOREK_SODU) / 1000:.3f} g")
+            stezenie_nacl = nacl / v_a
+            k2.caption(f"= {stezenie_nacl:.2f} mol/L w roztworze A, "
+                       f"{nacl * synthesis.masa_molowa(synthesis.CHLOREK_SODU) / 1000:.3f} g NaCl")
+            if stezenie_nacl > synthesis.ROZPUSZCZALNOSC_NACL_M:
+                st.warning(f"NaCl przekracza rozpuszczalność: {stezenie_nacl:.2f} mol/L, a roztwór nasycony "
+                           f"w 25 °C ma ok. {synthesis.ROZPUSZCZALNOSC_NACL_M:.1f} mol/L. W {v_a:g} mL roztworu A "
+                           f"zmieści się najwyżej ok. {synthesis.ROZPUSZCZALNOSC_NACL_M * v_a:.0f} mmol. "
+                           "Zwiększ objętość roztworu A albo zmniejsz ilość NaCl.")
+            elif stezenie_nacl > 0.8 * synthesis.ROZPUSZCZALNOSC_NACL_M:
+                st.info(f"NaCl jest blisko nasycenia ({stezenie_nacl:.2f} z ok. "
+                        f"{synthesis.ROZPUSZCZALNOSC_NACL_M:.1f} mol/L). Heksacyjanożelazian sodu w tym samym "
+                        "roztworze dodatkowo obniża rozpuszczalność NaCl (efekt wspólnego jonu Na⁺).")
 
     udzialy, sole, aktywne, niepasujace = {}, {}, set(), []
     for _, r in tabela.iterrows():
@@ -684,7 +693,7 @@ def zakladka_synteza() -> None:
     wzor_heks = synthesis.HEKSACYJANOZELAZIANY[heks]
     kation = "K" if wzor_heks.startswith("K") else "Na"
     odczynniki, stezenia = synthesis.plan_syntezy(udzialy, sole, n_metali, wzor_heks, stosunek_fecn,
-                                                  stosunek_cytr, v_a, v_b, nacl, roztwor_nacl)
+                                                  stosunek_cytr, v_a, v_b, nacl)
     wzor = synthesis.wzor_produktu(udzialy, sod, woda, kation)
     m_produktu = synthesis.masa_molowa(wzor)
     s_conf = synthesis.entropia_konfiguracyjna(udzialy)
@@ -723,13 +732,13 @@ def zakladka_synteza() -> None:
     if spoza_listy:
         st.info(f"Spoza listy odczynników laboratorium: {', '.join(spoza_listy)}.")
     k1, k2, k3 = st.columns([1, 1, 2])
-    k1.metric("Stężenie metali w A", f"{stezenia['A [M] (metale)']:.3f} M")
-    k2.metric("Stężenie Fe(CN)₆ w B", f"{stezenia['B [M] (Fe(CN)6)']:.3f} M")
+    k1.metric("Stężenie Fe(CN)₆ w A", f"{stezenia['Fe(CN)6 [M]']:.3f} M")
+    k2.metric("Stężenie metali w B", f"{stezenia['metale [M]']:.3f} M")
 
     docx = karta_docx.karta_syntezy(
         wzor=wzor, udzialy=udzialy, sole=sole, aktywne=aktywne, n_metali_mmol=n_metali,
         stosunek_fecn=stosunek_fecn, stosunek_cytrynianu=stosunek_cytr, heksacyjanian=wzor_heks,
-        v_a_ml=v_a, v_b_ml=v_b, sod=sod, woda=woda, n_nacl_mmol=nacl, roztwor_nacl=roztwor_nacl,
+        v_a_ml=v_a, v_b_ml=v_b, sod=sod, woda=woda, n_nacl_mmol=nacl,
         m_produktu=m_produktu, s_conf=s_conf,
         elektrony=elektrony, q_teor=q_teor, odczynniki=odczynniki, stezenia=stezenia,
     )

@@ -82,6 +82,7 @@ HEKSACYJANOZELAZIANY = {
 
 CYTRYNIAN_SODU = "Na3C6H5O7·2H2O"
 CHLOREK_SODU = "NaCl"
+ROZPUSZCZALNOSC_NACL_M = 5.4
 
 _TOKEN = re.compile(r"([A-Z][a-z]?|\(|\)|\[|\]|\d+(?:\.\d+)?)")
 
@@ -223,19 +224,20 @@ def plan_syntezy(
     v_roztworu_a_ml: float,
     v_roztworu_b_ml: float,
     n_nacl_mmol: float = 0.0,
-    roztwor_nacl: str = "B",
 ) -> tuple[list[Odczynnik], dict[str, float]]:
     """Naważki odczynników dla współstrącania.
 
-    Roztwór A: sole metali (+ cytrynian sodu jako czynnik chelatujący).
-    Roztwór B: heksacyjanożelazian.
-    NaCl (opcjonalnie): zadana ilość [mmol] w roztworze A lub B, jako dodatkowe źródło sodu.
+    Roztwór A: heksacyjanożelazian + opcjonalnie NaCl (nadmiar sodu).
+    Roztwór B: sole metali + cytrynian sodu jako czynnik chelatujący.
     """
     suma = sum(udzialy.values())
     if suma <= 0:
         raise ValueError("Suma udziałów metali musi być dodatnia.")
 
-    odczynniki = []
+    odczynniki = [Odczynnik(nazwa_odczynnika(heksacyjanian, "heksacyjanożelazian"), heksacyjanian,
+                            n_metali_mmol * stosunek_fecn, "A")]
+    if n_nacl_mmol > 0:
+        odczynniki.append(Odczynnik(nazwa_odczynnika(CHLOREK_SODU), CHLOREK_SODU, n_nacl_mmol, "A"))
     for metal, x in udzialy.items():
         if x <= 0:
             continue
@@ -243,17 +245,17 @@ def plan_syntezy(
         if atomy <= 0:
             raise ValueError(f"Prekursor {sole[metal]} nie zawiera metalu {metal}.")
         odczynniki.append(Odczynnik(nazwa_odczynnika(sole[metal], f"sól {metal}"), sole[metal],
-                                    n_metali_mmol * x / suma / atomy, "A"))
+                                    n_metali_mmol * x / suma / atomy, "B"))
     if stosunek_cytrynianu > 0:
         odczynniki.append(Odczynnik(nazwa_odczynnika(CYTRYNIAN_SODU), CYTRYNIAN_SODU,
-                                    n_metali_mmol * stosunek_cytrynianu, "A"))
-    odczynniki.append(Odczynnik(nazwa_odczynnika(heksacyjanian, "heksacyjanożelazian"), heksacyjanian,
-                                n_metali_mmol * stosunek_fecn, "B"))
-    if n_nacl_mmol > 0:
-        odczynniki.append(Odczynnik(nazwa_odczynnika(CHLOREK_SODU), CHLOREK_SODU, n_nacl_mmol, roztwor_nacl))
+                                    n_metali_mmol * stosunek_cytrynianu, "B"))
+
+    def stezenie(n_mmol: float, v_ml: float) -> float:
+        return n_mmol / v_ml if v_ml > 0 else float("nan")
 
     stezenia = {
-        "A [M] (metale)": n_metali_mmol / v_roztworu_a_ml if v_roztworu_a_ml > 0 else float("nan"),
-        "B [M] (Fe(CN)6)": n_metali_mmol * stosunek_fecn / v_roztworu_b_ml if v_roztworu_b_ml > 0 else float("nan"),
+        "Fe(CN)6 [M]": stezenie(n_metali_mmol * stosunek_fecn, v_roztworu_a_ml),
+        "NaCl [M]": stezenie(n_nacl_mmol, v_roztworu_a_ml),
+        "metale [M]": stezenie(n_metali_mmol, v_roztworu_b_ml),
     }
     return odczynniki, stezenia

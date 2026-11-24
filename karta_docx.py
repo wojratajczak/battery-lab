@@ -99,6 +99,16 @@ def _tabela(dokument, naglowki: list[str] | None, wiersze: list[list], szerokosc
     return tabela
 
 
+def _opis_nacl(n_mmol: float, objetosc_ml: float) -> str:
+    if n_mmol <= 0:
+        return "nie dodano"
+    stezenie = n_mmol / objetosc_ml
+    opis = f"{_liczba(n_mmol, 3)} mmol w roztworze A ({_liczba(stezenie, 2)} mol/L)"
+    if stezenie > synthesis.ROZPUSZCZALNOSC_NACL_M:
+        opis += f", powyżej rozpuszczalności (ok. {_liczba(synthesis.ROZPUSZCZALNOSC_NACL_M, 1)} mol/L)"
+    return opis
+
+
 def _naglowek(dokument, tekst: str) -> None:
     akapit = dokument.add_heading(tekst, level=1)
     akapit.paragraph_format.space_before = Pt(14)
@@ -126,7 +136,6 @@ def karta_syntezy(
     woda: float,
     m_produktu: float,
     n_nacl_mmol: float = 0.0,
-    roztwor_nacl: str = "B",
     s_conf: float,
     elektrony: float,
     q_teor: float,
@@ -192,13 +201,11 @@ def karta_syntezy(
             ["Heksacyjanożelazian", heksacyjanian],
             ["Stosunek molowy Fe(CN)₆ : M", _liczba(stosunek_fecn, 2)],
             ["Stosunek molowy cytrynian : M", _liczba(stosunek_cytrynianu, 2)],
-            ["Objętość roztworu A", f"{_liczba(v_a_ml, 1)} mL"],
-            ["Objętość roztworu B", f"{_liczba(v_b_ml, 1)} mL"],
+            ["Objętość roztworu A (Fe(CN)₆ + NaCl)", f"{_liczba(v_a_ml, 1)} mL"],
+            ["Objętość roztworu B (sole metali)", f"{_liczba(v_b_ml, 1)} mL"],
             ["Zakładana zawartość Na (x)", _liczba(sod, 2)],
             ["Woda krystalizacyjna (y)", _liczba(woda, 2)],
-            ["Chlorek sodu (NaCl)", f"{_liczba(n_nacl_mmol, 3)} mmol w roztworze {roztwor_nacl} "
-             f"({_liczba(n_nacl_mmol / (v_a_ml if roztwor_nacl == 'A' else v_b_ml), 2)} mol/L)"
-             if n_nacl_mmol > 0 else "nie dodano"],
+            ["Chlorek sodu (NaCl)", _opis_nacl(n_nacl_mmol, v_a_ml)],
         ],
         [7.0, 10.0],
         kolumny_wzorow={1},
@@ -221,7 +228,8 @@ def karta_syntezy(
     )
 
     _naglowek(dokument, "Naważki")
-    for roztwor, objetosc, opis in (("A", v_a_ml, "sole metali"), ("B", v_b_ml, "heksacyjanożelazian")):
+    opis_a = "heksacyjanożelazian i NaCl" if n_nacl_mmol > 0 else "heksacyjanożelazian"
+    for roztwor, objetosc, opis in (("A", v_a_ml, opis_a), ("B", v_b_ml, "sole metali")):
         pozycje = [o for o in odczynniki if o.roztwor == roztwor]
         if not pozycje:
             continue
@@ -243,8 +251,10 @@ def karta_syntezy(
     akapit = dokument.add_paragraph()
     akapit.paragraph_format.space_before = Pt(8)
     akapit.add_run("Stężenia: ").bold = True
-    akapit.add_run(f"metale w roztworze A {_liczba(stezenia['A [M] (metale)'], 3)} M, "
-                   f"Fe(CN)₆ w roztworze B {_liczba(stezenia['B [M] (Fe(CN)6)'], 3)} M.")
+    tekst = f"Fe(CN)₆ w roztworze A {_liczba(stezenia['Fe(CN)6 [M]'], 3)} M"
+    if n_nacl_mmol > 0:
+        tekst += f", NaCl w roztworze A {_liczba(stezenia['NaCl [M]'], 2)} M"
+    akapit.add_run(tekst + f", metale w roztworze B {_liczba(stezenia['metale [M]'], 3)} M.")
 
     _naglowek(dokument, "Przebieg syntezy i obserwacje")
     szerokosc_tekstu = sekcja.page_width - sekcja.left_margin - sekcja.right_margin
