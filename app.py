@@ -766,10 +766,10 @@ def main() -> None:
     zakladki = st.tabs(["📚 Radar literatury", "🔋 Analiza ogniw", "⚗️ Kalkulator syntezy"])
     with zakladki[0]:
         zakladka_literatura(klucz.strip())
-    with zakladki[1]:
-        zakladka_ogniwa()
     with zakladki[2]:
         zakladka_synteza()
+    with zakladki[1]:
+        zakladka_ogniwa()
 
 
 if dostep_przyznany():
