@@ -222,14 +222,14 @@ def plan_syntezy(
     stosunek_cytrynianu: float,
     v_roztworu_a_ml: float,
     v_roztworu_b_ml: float,
-    stezenie_nacl: float = 0.0,
+    n_nacl_mmol: float = 0.0,
     roztwor_nacl: str = "B",
 ) -> tuple[list[Odczynnik], dict[str, float]]:
     """Naważki odczynników dla współstrącania.
 
     Roztwór A: sole metali (+ cytrynian sodu jako czynnik chelatujący).
     Roztwór B: heksacyjanożelazian.
-    NaCl (opcjonalnie): zadane stężenie [mol/L] w roztworze A lub B, jako dodatkowe źródło sodu.
+    NaCl (opcjonalnie): zadana ilość [mmol] w roztworze A lub B, jako dodatkowe źródło sodu.
     """
     suma = sum(udzialy.values())
     if suma <= 0:
@@ -249,10 +249,8 @@ def plan_syntezy(
                                     n_metali_mmol * stosunek_cytrynianu, "A"))
     odczynniki.append(Odczynnik(nazwa_odczynnika(heksacyjanian, "heksacyjanożelazian"), heksacyjanian,
                                 n_metali_mmol * stosunek_fecn, "B"))
-    if stezenie_nacl > 0:
-        objetosc = v_roztworu_a_ml if roztwor_nacl == "A" else v_roztworu_b_ml
-        odczynniki.append(Odczynnik(nazwa_odczynnika(CHLOREK_SODU), CHLOREK_SODU, stezenie_nacl * objetosc,
-                                    roztwor_nacl))
+    if n_nacl_mmol > 0:
+        odczynniki.append(Odczynnik(nazwa_odczynnika(CHLOREK_SODU), CHLOREK_SODU, n_nacl_mmol, roztwor_nacl))
 
     stezenia = {
         "A [M] (metale)": n_metali_mmol / v_roztworu_a_ml if v_roztworu_a_ml > 0 else float("nan"),

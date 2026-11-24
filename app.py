@@ -650,9 +650,13 @@ def zakladka_synteza() -> None:
         sod = k1.number_input("Zakładana zawartość Na (x)", min_value=0.0, max_value=2.0, value=1.5, step=0.1)
         woda = k2.number_input("Woda krystalizacyjna (y)", min_value=0.0, max_value=6.0, value=2.0, step=0.5)
         k1, k2 = st.columns(2)
-        nacl = k1.number_input("NaCl [mol/L] (0 = bez NaCl)", min_value=0.0, max_value=6.0, value=0.0, step=0.5,
+        nacl = k1.number_input("NaCl [mmol] (0 = bez NaCl)", min_value=0.0, value=0.0, step=10.0,
                                help="Chlorek sodu jako dodatkowe źródło sodu, zwiększa zawartość Na w produkcie.")
         roztwor_nacl = k2.selectbox("NaCl w roztworze", ["B", "A"], disabled=nacl == 0)
+        if nacl > 0:
+            v_nacl = v_a if roztwor_nacl == "A" else v_b
+            k1.caption(f"= {nacl / v_nacl:.2f} mol/L w roztworze {roztwor_nacl}, "
+                       f"{nacl * synthesis.masa_molowa(synthesis.CHLOREK_SODU) / 1000:.3f} g")
 
     udzialy, sole, aktywne, niepasujace = {}, {}, set(), []
     for _, r in tabela.iterrows():
@@ -725,7 +729,7 @@ def zakladka_synteza() -> None:
     docx = karta_docx.karta_syntezy(
         wzor=wzor, udzialy=udzialy, sole=sole, aktywne=aktywne, n_metali_mmol=n_metali,
         stosunek_fecn=stosunek_fecn, stosunek_cytrynianu=stosunek_cytr, heksacyjanian=wzor_heks,
-        v_a_ml=v_a, v_b_ml=v_b, sod=sod, woda=woda, stezenie_nacl=nacl, roztwor_nacl=roztwor_nacl,
+        v_a_ml=v_a, v_b_ml=v_b, sod=sod, woda=woda, n_nacl_mmol=nacl, roztwor_nacl=roztwor_nacl,
         m_produktu=m_produktu, s_conf=s_conf,
         elektrony=elektrony, q_teor=q_teor, odczynniki=odczynniki, stezenia=stezenia,
     )
