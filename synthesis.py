@@ -25,25 +25,63 @@ SOLE = {
     "V": ["VCl3", "VOSO4·5H2O"],
     "Cr": ["CrCl3·6H2O", "Cr(NO3)3·9H2O", "KCr(SO4)2·12H2O"],
     "Mn": ["MnCl2·4H2O", "MnSO4·H2O", "Mn(CH3COO)2·4H2O", "Mn(NO3)2·4H2O"],
-    "Fe": ["FeSO4·7H2O", "FeCl2·4H2O", "(NH4)2Fe(SO4)2·6H2O"],
+    "Fe": ["FeCl2", "FeCl2·4H2O", "FeSO4·7H2O", "(NH4)2Fe(SO4)2·6H2O"],
     "Ni": ["NiCl2·6H2O", "Ni(NO3)2·6H2O", "NiSO4·6H2O", "Ni(CH3COO)2·4H2O"],
-    "Cu": ["CuCl2·2H2O", "CuSO4·5H2O", "Cu(NO3)2·3H2O", "Cu(CH3COO)2·H2O"],
-    "Zr": ["ZrOCl2·8H2O", "ZrCl4", "Zr(SO4)2·4H2O"],
+    "Cu": ["CuCl2", "CuCl2·2H2O", "CuSO4·5H2O", "Cu(NO3)2·3H2O", "Cu(CH3COO)2·H2O"],
+    "Zr": ["ZrCl4", "ZrOCl2·8H2O", "Zr(SO4)2·4H2O"],
     "Nb": ["NbCl5", "NH4NbO(C2O4)2"],
-    "Mg": ["MgCl2·6H2O", "MgSO4·7H2O", "Mg(NO3)2·6H2O", "Mg(CH3COO)2·4H2O"],
+    "Mg": ["MgCl2", "MgCl2·6H2O", "MgSO4·7H2O", "Mg(NO3)2·6H2O", "Mg(CH3COO)2·4H2O"],
     "Zn": ["ZnCl2", "ZnSO4·7H2O", "Zn(NO3)2·6H2O", "Zn(CH3COO)2·2H2O"],
-    "Al": ["AlCl3·6H2O", "Al(NO3)3·9H2O", "Al2(SO4)3·18H2O", "KAl(SO4)2·12H2O"],
+    "Al": ["AlCl3", "AlCl3·6H2O", "Al(NO3)3·9H2O", "Al2(SO4)3·18H2O", "KAl(SO4)2·12H2O"],
+}
+
+ODCZYNNIKI_LABORATORIUM = {
+    "ZrCl4", "NbCl5", "MgCl2", "ZnCl2", "AlCl3", "VCl3", "CrCl3·6H2O", "FeCl2", "MnCl2·4H2O",
+    "NiCl2·6H2O", "CuCl2", "Na4[Fe(CN)6]·10H2O", "NaCl", "Na3C6H5O7·2H2O",
+}
+
+NAZWY = {
+    "TiCl3": "chlorek tytanu(III)", "TiCl4": "chlorek tytanu(IV)", "TiOSO4": "siarczan tytanylu",
+    "Ti(SO4)2": "siarczan tytanu(IV)",
+    "VCl3": "chlorek wanadu(III)", "VOSO4·5H2O": "siarczan wanadylu pentahydrat",
+    "CrCl3·6H2O": "chlorek chromu(III) heksahydrat", "Cr(NO3)3·9H2O": "azotan chromu(III) nonahydrat",
+    "KCr(SO4)2·12H2O": "ałun chromowo-potasowy",
+    "MnCl2·4H2O": "chlorek manganu(II) tetrahydrat", "MnSO4·H2O": "siarczan manganu(II) monohydrat",
+    "Mn(CH3COO)2·4H2O": "octan manganu(II) tetrahydrat", "Mn(NO3)2·4H2O": "azotan manganu(II) tetrahydrat",
+    "FeCl2": "chlorek żelaza(II)", "FeCl2·4H2O": "chlorek żelaza(II) tetrahydrat",
+    "FeSO4·7H2O": "siarczan żelaza(II) heptahydrat", "(NH4)2Fe(SO4)2·6H2O": "sól Mohra",
+    "NiCl2·6H2O": "chlorek niklu(II) heksahydrat", "Ni(NO3)2·6H2O": "azotan niklu(II) heksahydrat",
+    "NiSO4·6H2O": "siarczan niklu(II) heksahydrat", "Ni(CH3COO)2·4H2O": "octan niklu(II) tetrahydrat",
+    "CuCl2": "chlorek miedzi(II)", "CuCl2·2H2O": "chlorek miedzi(II) dihydrat",
+    "CuSO4·5H2O": "siarczan miedzi(II) pentahydrat", "Cu(NO3)2·3H2O": "azotan miedzi(II) trihydrat",
+    "Cu(CH3COO)2·H2O": "octan miedzi(II) monohydrat",
+    "ZrCl4": "chlorek cyrkonu(IV)", "ZrOCl2·8H2O": "chlorek cyrkonylu oktahydrat",
+    "Zr(SO4)2·4H2O": "siarczan cyrkonu(IV) tetrahydrat",
+    "NbCl5": "chlorek niobu(V)", "NH4NbO(C2O4)2": "szczawian amonowo-niobowy",
+    "MgCl2": "chlorek magnezu", "MgCl2·6H2O": "chlorek magnezu heksahydrat",
+    "MgSO4·7H2O": "siarczan magnezu heptahydrat", "Mg(NO3)2·6H2O": "azotan magnezu heksahydrat",
+    "Mg(CH3COO)2·4H2O": "octan magnezu tetrahydrat",
+    "ZnCl2": "chlorek cynku(II)", "ZnSO4·7H2O": "siarczan cynku heptahydrat",
+    "Zn(NO3)2·6H2O": "azotan cynku heksahydrat", "Zn(CH3COO)2·2H2O": "octan cynku dihydrat",
+    "AlCl3": "chlorek glinu", "AlCl3·6H2O": "chlorek glinu heksahydrat", "Al(NO3)3·9H2O": "azotan glinu nonahydrat",
+    "Al2(SO4)3·18H2O": "siarczan glinu oktadekahydrat", "KAl(SO4)2·12H2O": "ałun glinowo-potasowy",
+    "Na4[Fe(CN)6]·10H2O": "heksacyjanożelazian(II) sodu dekahydrat",
+    "K4[Fe(CN)6]·3H2O": "heksacyjanożelazian(II) potasu trihydrat",
+    "Na3[Fe(CN)6]": "heksacyjanożelazian(III) sodu",
+    "Na3C6H5O7·2H2O": "cytrynian trisodu dihydrat",
+    "NaCl": "chlorek sodu",
 }
 
 AKTYWNE_REDOKS = {"Ti", "V", "Mn", "Fe"}
 
 HEKSACYJANOZELAZIANY = {
-    "Na4[Fe(CN)6]·10H2O (żelazocyjanek sodu)": "Na4[Fe(CN)6]·10H2O",
-    "K4[Fe(CN)6]·3H2O (żelazocyjanek potasu)": "K4[Fe(CN)6]·3H2O",
-    "Na3[Fe(CN)6] (żelazicyjanek sodu)": "Na3[Fe(CN)6]",
+    "Na4[Fe(CN)6]·10H2O (heksacyjanożelazian(II) sodu)": "Na4[Fe(CN)6]·10H2O",
+    "K4[Fe(CN)6]·3H2O (heksacyjanożelazian(II) potasu)": "K4[Fe(CN)6]·3H2O",
+    "Na3[Fe(CN)6] (heksacyjanożelazian(III) sodu)": "Na3[Fe(CN)6]",
 }
 
 CYTRYNIAN_SODU = "Na3C6H5O7·2H2O"
+CHLOREK_SODU = "NaCl"
 
 _TOKEN = re.compile(r"([A-Z][a-z]?|\(|\)|\[|\]|\d+(?:\.\d+)?)")
 
@@ -131,6 +169,14 @@ def wzor_produktu(udzialy: dict[str, float], sod: float, woda: float, kation: st
     return f"{wzor}·{woda:g}H2O" if woda > 0 else wzor
 
 
+def nazwa_odczynnika(wzor: str, zapasowa: str = "") -> str:
+    return NAZWY.get(wzor, zapasowa or wzor)
+
+
+def na_liscie_laboratorium(wzor: str) -> bool:
+    return wzor in ODCZYNNIKI_LABORATORIUM
+
+
 def atomy_metalu(wzor_soli: str, metal: str) -> float:
     """Liczba atomów danego metalu w jednostce wzoru soli (0, jeśli wzór jest niepoprawny lub go nie zawiera)."""
     try:
@@ -176,11 +222,14 @@ def plan_syntezy(
     stosunek_cytrynianu: float,
     v_roztworu_a_ml: float,
     v_roztworu_b_ml: float,
+    stezenie_nacl: float = 0.0,
+    roztwor_nacl: str = "B",
 ) -> tuple[list[Odczynnik], dict[str, float]]:
     """Naważki odczynników dla współstrącania.
 
-    Roztwór A: sole metali przejściowych (+ cytrynian sodu jako czynnik chelatujący).
+    Roztwór A: sole metali (+ cytrynian sodu jako czynnik chelatujący).
     Roztwór B: heksacyjanożelazian.
+    NaCl (opcjonalnie): zadane stężenie [mol/L] w roztworze A lub B, jako dodatkowe źródło sodu.
     """
     suma = sum(udzialy.values())
     if suma <= 0:
@@ -193,10 +242,17 @@ def plan_syntezy(
         atomy = atomy_metalu(sole[metal], metal)
         if atomy <= 0:
             raise ValueError(f"Prekursor {sole[metal]} nie zawiera metalu {metal}.")
-        odczynniki.append(Odczynnik(f"sól {metal}", sole[metal], n_metali_mmol * x / suma / atomy, "A"))
+        odczynniki.append(Odczynnik(nazwa_odczynnika(sole[metal], f"sól {metal}"), sole[metal],
+                                    n_metali_mmol * x / suma / atomy, "A"))
     if stosunek_cytrynianu > 0:
-        odczynniki.append(Odczynnik("cytrynian trisodu", CYTRYNIAN_SODU, n_metali_mmol * stosunek_cytrynianu, "A"))
-    odczynniki.append(Odczynnik("heksacyjanożelazian", heksacyjanian, n_metali_mmol * stosunek_fecn, "B"))
+        odczynniki.append(Odczynnik(nazwa_odczynnika(CYTRYNIAN_SODU), CYTRYNIAN_SODU,
+                                    n_metali_mmol * stosunek_cytrynianu, "A"))
+    odczynniki.append(Odczynnik(nazwa_odczynnika(heksacyjanian, "heksacyjanożelazian"), heksacyjanian,
+                                n_metali_mmol * stosunek_fecn, "B"))
+    if stezenie_nacl > 0:
+        objetosc = v_roztworu_a_ml if roztwor_nacl == "A" else v_roztworu_b_ml
+        odczynniki.append(Odczynnik(nazwa_odczynnika(CHLOREK_SODU), CHLOREK_SODU, stezenie_nacl * objetosc,
+                                    roztwor_nacl))
 
     stezenia = {
         "A [M] (metale)": n_metali_mmol / v_roztworu_a_ml if v_roztworu_a_ml > 0 else float("nan"),

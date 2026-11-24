@@ -125,6 +125,8 @@ def karta_syntezy(
     sod: float,
     woda: float,
     m_produktu: float,
+    stezenie_nacl: float = 0.0,
+    roztwor_nacl: str = "B",
     s_conf: float,
     elektrony: float,
     q_teor: float,
@@ -194,6 +196,8 @@ def karta_syntezy(
             ["Objętość roztworu B", f"{_liczba(v_b_ml, 1)} mL"],
             ["Zakładana zawartość Na (x)", _liczba(sod, 2)],
             ["Woda krystalizacyjna (y)", _liczba(woda, 2)],
+            ["Chlorek sodu (NaCl)", f"{_liczba(stezenie_nacl, 2)} mol/L w roztworze {roztwor_nacl}"
+             if stezenie_nacl > 0 else "nie dodano"],
         ],
         [7.0, 10.0],
         kolumny_wzorow={1},
@@ -230,7 +234,7 @@ def karta_syntezy(
             ["Odczynnik", "Wzór", "M [g/mol]", "n [mmol]", "Masa [g]", "Odważono [g]"],
             [[o.nazwa, o.wzor, _liczba(o.masa_molowa, 2), _liczba(o.mmol, 3), _liczba(o.masa_g, 4), ""]
              for o in pozycje],
-            [4.2, 4.4, 2.1, 2.0, 2.0, 2.3],
+            [5.0, 3.8, 2.0, 1.9, 2.0, 2.3],
             wyrownaj_prawo={2, 3, 4},
             kolumny_wzorow={1},
         )

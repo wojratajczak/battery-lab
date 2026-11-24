@@ -649,6 +649,10 @@ def zakladka_synteza() -> None:
         k1, k2 = st.columns(2)
         sod = k1.number_input("Zakładana zawartość Na (x)", min_value=0.0, max_value=2.0, value=1.5, step=0.1)
         woda = k2.number_input("Woda krystalizacyjna (y)", min_value=0.0, max_value=6.0, value=2.0, step=0.5)
+        k1, k2 = st.columns(2)
+        nacl = k1.number_input("NaCl [mol/L] (0 = bez NaCl)", min_value=0.0, max_value=6.0, value=0.0, step=0.5,
+                               help="Chlorek sodu jako dodatkowe źródło sodu, zwiększa zawartość Na w produkcie.")
+        roztwor_nacl = k2.selectbox("NaCl w roztworze", ["B", "A"], disabled=nacl == 0)
 
     udzialy, sole, aktywne, niepasujace = {}, {}, set(), []
     for _, r in tabela.iterrows():
@@ -676,7 +680,7 @@ def zakladka_synteza() -> None:
     wzor_heks = synthesis.HEKSACYJANOZELAZIANY[heks]
     kation = "K" if wzor_heks.startswith("K") else "Na"
     odczynniki, stezenia = synthesis.plan_syntezy(udzialy, sole, n_metali, wzor_heks, stosunek_fecn,
-                                                  stosunek_cytr, v_a, v_b)
+                                                  stosunek_cytr, v_a, v_b, nacl, roztwor_nacl)
     wzor = synthesis.wzor_produktu(udzialy, sod, woda, kation)
     m_produktu = synthesis.masa_molowa(wzor)
     s_conf = synthesis.entropia_konfiguracyjna(udzialy)
@@ -703,12 +707,17 @@ def zakladka_synteza() -> None:
     st.markdown("#### 🧾 Naważki")
     nawazki = pd.DataFrame([{
         "roztwór": o.roztwor, "odczynnik": o.nazwa, "wzór": synthesis.ladny_wzor(o.wzor), "M [g/mol]": o.masa_molowa,
-        "n [mmol]": o.mmol, "masa [g]": o.masa_g,
+        "n [mmol]": o.mmol, "masa [g]": o.masa_g, "w laboratorium": synthesis.na_liscie_laboratorium(o.wzor),
     } for o in odczynniki])
     st.dataframe(nawazki, hide_index=True,
                  column_config={"M [g/mol]": st.column_config.NumberColumn(format="%.2f"),
                                 "n [mmol]": st.column_config.NumberColumn(format="%.3f"),
-                                "masa [g]": st.column_config.NumberColumn(format="%.4f")})
+                                "masa [g]": st.column_config.NumberColumn(format="%.4f"),
+                                "w laboratorium": st.column_config.CheckboxColumn(
+                                    help="Odczynnik jest na liście odczynników dostępnych w laboratorium.")})
+    spoza_listy = [synthesis.ladny_wzor(o.wzor) for o in odczynniki if not synthesis.na_liscie_laboratorium(o.wzor)]
+    if spoza_listy:
+        st.info(f"Spoza listy odczynników laboratorium: {', '.join(spoza_listy)}.")
     k1, k2, k3 = st.columns([1, 1, 2])
     k1.metric("Stężenie metali w A", f"{stezenia['A [M] (metale)']:.3f} M")
     k2.metric("Stężenie Fe(CN)₆ w B", f"{stezenia['B [M] (Fe(CN)6)']:.3f} M")
@@ -716,7 +725,8 @@ def zakladka_synteza() -> None:
     docx = karta_docx.karta_syntezy(
         wzor=wzor, udzialy=udzialy, sole=sole, aktywne=aktywne, n_metali_mmol=n_metali,
         stosunek_fecn=stosunek_fecn, stosunek_cytrynianu=stosunek_cytr, heksacyjanian=wzor_heks,
-        v_a_ml=v_a, v_b_ml=v_b, sod=sod, woda=woda, m_produktu=m_produktu, s_conf=s_conf,
+        v_a_ml=v_a, v_b_ml=v_b, sod=sod, woda=woda, stezenie_nacl=nacl, roztwor_nacl=roztwor_nacl,
+        m_produktu=m_produktu, s_conf=s_conf,
         elektrony=elektrony, q_teor=q_teor, odczynniki=odczynniki, stezenia=stezenia,
     )
     nazwa = "karta_syntezy_" + "".join(m for m, x in udzialy.items() if x > 0) + f"_{date.today():%Y%m%d}"
