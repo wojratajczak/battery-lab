@@ -18,16 +18,24 @@ ATOMIC_MASSES = {
     "Sn": 118.71, "I": 126.90, "Cs": 132.91, "Ba": 137.33, "La": 138.91, "Ce": 140.12,
 }
 
-METALE = ["Mn", "Fe", "Co", "Ni", "Cu", "Zn"]
+METALE = ["Ti", "V", "Cr", "Mn", "Fe", "Ni", "Cu", "Zr", "Nb", "Mg", "Zn", "Al"]
 
 SOLE = {
+    "Ti": ["TiCl3", "TiCl4", "TiOSO4", "Ti(SO4)2"],
+    "V": ["VCl3", "VOSO4·5H2O"],
+    "Cr": ["CrCl3·6H2O", "Cr(NO3)3·9H2O", "KCr(SO4)2·12H2O"],
     "Mn": ["MnCl2·4H2O", "MnSO4·H2O", "Mn(CH3COO)2·4H2O", "Mn(NO3)2·4H2O"],
-    "Fe": ["FeSO4·7H2O", "FeCl2·4H2O"],
-    "Co": ["CoCl2·6H2O", "Co(NO3)2·6H2O", "CoSO4·7H2O", "Co(CH3COO)2·4H2O"],
+    "Fe": ["FeSO4·7H2O", "FeCl2·4H2O", "(NH4)2Fe(SO4)2·6H2O"],
     "Ni": ["NiCl2·6H2O", "Ni(NO3)2·6H2O", "NiSO4·6H2O", "Ni(CH3COO)2·4H2O"],
     "Cu": ["CuCl2·2H2O", "CuSO4·5H2O", "Cu(NO3)2·3H2O", "Cu(CH3COO)2·H2O"],
+    "Zr": ["ZrOCl2·8H2O", "ZrCl4", "Zr(SO4)2·4H2O"],
+    "Nb": ["NbCl5", "NH4NbO(C2O4)2"],
+    "Mg": ["MgCl2·6H2O", "MgSO4·7H2O", "Mg(NO3)2·6H2O", "Mg(CH3COO)2·4H2O"],
     "Zn": ["ZnCl2", "ZnSO4·7H2O", "Zn(NO3)2·6H2O", "Zn(CH3COO)2·2H2O"],
+    "Al": ["AlCl3·6H2O", "Al(NO3)3·9H2O", "Al2(SO4)3·18H2O", "KAl(SO4)2·12H2O"],
 }
+
+AKTYWNE_REDOKS = {"Ti", "V", "Mn", "Fe"}
 
 HEKSACYJANOZELAZIANY = {
     "Na4[Fe(CN)6]·10H2O (żelazocyjanek sodu)": "Na4[Fe(CN)6]·10H2O",
@@ -123,6 +131,21 @@ def wzor_produktu(udzialy: dict[str, float], sod: float, woda: float, kation: st
     return f"{wzor}·{woda:g}H2O" if woda > 0 else wzor
 
 
+def atomy_metalu(wzor_soli: str, metal: str) -> float:
+    """Liczba atomów danego metalu w jednostce wzoru soli (0, jeśli wzór jest niepoprawny lub go nie zawiera)."""
+    try:
+        return sklad_pierwiastkowy(wzor_soli).get(metal, 0.0)
+    except ValueError:
+        return 0.0
+
+
+def liczba_elektronow(udzialy: dict[str, float], aktywne: set[str], sod: float) -> float:
+    """Elektrony na jednostkę wzoru: Fe w Fe(CN)6 + aktywne metale w podsieci M, ograniczone zawartością sodu."""
+    suma = sum(udzialy.values())
+    udzial_aktywnych = sum(x / suma for m, x in udzialy.items() if m in aktywne) if suma > 0 else 0.0
+    return min(sod, 1 + udzial_aktywnych)
+
+
 def pojemnosc_teoretyczna(masa_molowa_produktu: float, liczba_elektronow: float) -> float:
     """Pojemność teoretyczna [mAh/g] = n·F / (3,6·M)."""
     return liczba_elektronow * FARADAY_MAH / masa_molowa_produktu
@@ -163,10 +186,14 @@ def plan_syntezy(
     if suma <= 0:
         raise ValueError("Suma udziałów metali musi być dodatnia.")
 
-    odczynniki = [
-        Odczynnik(f"sól {metal}", sole[metal], n_metali_mmol * x / suma, "A")
-        for metal, x in udzialy.items() if x > 0
-    ]
+    odczynniki = []
+    for metal, x in udzialy.items():
+        if x <= 0:
+            continue
+        atomy = atomy_metalu(sole[metal], metal)
+        if atomy <= 0:
+            raise ValueError(f"Prekursor {sole[metal]} nie zawiera metalu {metal}.")
+        odczynniki.append(Odczynnik(f"sól {metal}", sole[metal], n_metali_mmol * x / suma / atomy, "A"))
     if stosunek_cytrynianu > 0:
         odczynniki.append(Odczynnik("cytrynian trisodu", CYTRYNIAN_SODU, n_metali_mmol * stosunek_cytrynianu, "A"))
     odczynniki.append(Odczynnik("heksacyjanożelazian", heksacyjanian, n_metali_mmol * stosunek_fecn, "B"))

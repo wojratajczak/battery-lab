@@ -5,7 +5,9 @@ Uruchomienie: streamlit run app.py
 
 from __future__ import annotations
 
+import hmac
 import os
+import time
 from datetime import date
 
 import numpy as np
@@ -16,6 +18,7 @@ import streamlit as st
 
 import cycling
 import demo_data
+import karta_docx
 import openalex_client as oa
 import synthesis
 import zenodo_data
@@ -49,12 +52,35 @@ def wykres_poziomy(df: pd.DataFrame, x: str, y: str, tytul: str, kolor: str) -> 
     return wyglad(fig, wysokosc=max(300, 32 * len(dane) + 80))
 
 
-def klucz_z_konfiguracji() -> str:
+def sekret(nazwa: str) -> str:
     try:
-        z_sekretow = st.secrets.get("OPENALEX_API_KEY", "")
+        wartosc = st.secrets.get(nazwa, "")
     except Exception:
-        z_sekretow = ""
-    return z_sekretow or os.environ.get("OPENALEX_API_KEY", "")
+        wartosc = ""
+    return str(wartosc or os.environ.get(nazwa, ""))
+
+
+def klucz_z_konfiguracji() -> str:
+    return sekret("OPENALEX_API_KEY")
+
+
+def dostep_przyznany() -> bool:
+    haslo = sekret("APP_PASSWORD")
+    if not haslo or st.session_state.get("zalogowany"):
+        return True
+    _, srodek, _ = st.columns([1, 1.2, 1])
+    with srodek:
+        st.title("🔋 Battery Lab")
+        st.caption("Dostęp chroniony hasłem.")
+        with st.form("logowanie"):
+            wpisane = st.text_input("Hasło", type="password")
+            if st.form_submit_button("Wejdź", type="primary", width="stretch"):
+                if hmac.compare_digest(wpisane.encode("utf-8"), haslo.encode("utf-8")):
+                    st.session_state["zalogowany"] = True
+                    st.rerun()
+                time.sleep(2)
+                st.error("Nieprawidłowe hasło.")
+    return False
 
 
 @st.cache_data(ttl=86400, show_spinner=False)
@@ -584,25 +610,32 @@ def zakladka_ogniwa() -> None:
 
 def zakladka_synteza() -> None:
     st.subheader("⚗️ Kalkulator syntezy HE-PBA metodą współstrącania")
-    st.caption("Naważki odczynników dla NaₓM[Fe(CN)₆]·yH₂O, gdzie M to mieszanina metali przejściowych. "
+    st.caption("Naważki odczynników dla NaₓM[Fe(CN)₆]·yH₂O, gdzie M to mieszanina metali. "
                "Roztwór A: sole metali (+ cytrynian sodu jako czynnik chelatujący spowalniający krystalizację), "
                "roztwór B: heksacyjanożelazian.")
 
     lewa, prawa = st.columns([1.3, 1])
     with lewa:
-        metale = st.multiselect("Metale w podsieci M", synthesis.METALE, default=["Mn", "Fe", "Co", "Ni", "Cu"])
+        metale = st.multiselect("Metale w podsieci M", synthesis.METALE, default=["Mn", "Fe", "Ni", "Cu", "Zn"])
         if not metale:
             st.info("Wybierz co najmniej jeden metal.")
             return
         wszystkie_sole = [s for m in synthesis.METALE for s in synthesis.SOLE[m]]
         tabela = st.data_editor(
             pd.DataFrame({"metal": metale, "udział": [round(1 / len(metale), 4)] * len(metale),
-                          "sól": [synthesis.SOLE[m][0] for m in metale]}),
+                          "sól": [synthesis.SOLE[m][0] for m in metale], "własny wzór": [""] * len(metale),
+                          "redoks": [m in synthesis.AKTYWNE_REDOKS for m in metale]}),
             key=f"sklad_{'-'.join(metale)}", hide_index=True, disabled=["metal"],
             column_config={
                 "udział": st.column_config.NumberColumn("udział molowy", min_value=0.0, max_value=1.0, step=0.01,
                                                         format="%.3f"),
                 "sól": st.column_config.SelectboxColumn("prekursor", options=wszystkie_sole, required=True),
+                "własny wzór": st.column_config.TextColumn(
+                    "własny prekursor", help="Opcjonalnie: wzór innej soli, np. z inną liczbą cząsteczek wody, "
+                                             "np. NH4NbO(C2O4)2·3H2O. Zastępuje prekursor z listy."),
+                "redoks": st.column_config.CheckboxColumn(
+                    "redoks", help="Czy metal w podsieci M bierze udział w reakcji redoks "
+                                           "(wpływa na pojemność teoretyczną)."),
             },
         )
         k1, k2, k3 = st.columns(3)
@@ -617,12 +650,22 @@ def zakladka_synteza() -> None:
         sod = k1.number_input("Zakładana zawartość Na (x)", min_value=0.0, max_value=2.0, value=1.5, step=0.1)
         woda = k2.number_input("Woda krystalizacyjna (y)", min_value=0.0, max_value=6.0, value=2.0, step=0.5)
 
-    niepasujace = [r["metal"] for _, r in tabela.iterrows() if not str(r["sól"]).startswith(r["metal"])]
+    udzialy, sole, aktywne, niepasujace = {}, {}, set(), []
+    for _, r in tabela.iterrows():
+        metal = r["metal"]
+        udzialy[metal] = float(r["udział"] or 0)
+        wlasny = str(r["własny wzór"] or "").strip()
+        wybrany = wlasny or str(r["sól"] or "")
+        if synthesis.atomy_metalu(wybrany, metal) > 0:
+            sole[metal] = wybrany
+        else:
+            niepasujace.append(f"{metal} ({wybrany or 'brak'})")
+            sole[metal] = synthesis.SOLE[metal][0]
+        if bool(r["redoks"]):
+            aktywne.add(metal)
     if niepasujace:
-        st.warning(f"Wybrany prekursor nie zawiera metalu: {', '.join(niepasujace)} – użyto domyślnej soli.")
-    udzialy = {r["metal"]: float(r["udział"] or 0) for _, r in tabela.iterrows()}
-    sole = {r["metal"]: (r["sól"] if r["metal"] not in niepasujace else synthesis.SOLE[r["metal"]][0])
-            for _, r in tabela.iterrows()}
+        st.warning("Prekursor jest niepoprawny albo nie zawiera wybranego metalu: "
+                   f"{', '.join(niepasujace)}. Użyto domyślnej soli.")
     suma = sum(udzialy.values())
     if suma <= 0:
         st.error("Suma udziałów musi być większa od zera.")
@@ -637,8 +680,7 @@ def zakladka_synteza() -> None:
     wzor = synthesis.wzor_produktu(udzialy, sod, woda, kation)
     m_produktu = synthesis.masa_molowa(wzor)
     s_conf = synthesis.entropia_konfiguracyjna(udzialy)
-    aktywne = sum(x / suma for m, x in udzialy.items() if m in ("Mn", "Fe", "Co"))
-    elektrony = min(sod, 1 + aktywne)
+    elektrony = synthesis.liczba_elektronow(udzialy, aktywne, sod)
     q_teor = synthesis.pojemnosc_teoretyczna(m_produktu, elektrony)
 
     with prawa:
@@ -651,8 +693,8 @@ def zakladka_synteza() -> None:
         r2[0].metric("Pojemność teoretyczna", f"{q_teor:.0f} mAh/g", border=True)
         r2[1].metric("Wydajność teoretyczna", f"{n_metali * m_produktu / 1000:.3f} g", border=True)
         st.caption(f"Materiał {synthesis.klasa_entropii(s_conf)}. Pojemność teoretyczna dla {elektrony:.2f} e⁻ "
-                   "na jednostkę wzoru: zakłada aktywność redoks Fe w Fe(CN)₆ oraz Mn, Fe i Co w podsieci M "
-                   "(Ni, Cu, Zn traktowane jako nieaktywne), ograniczoną zawartością sodu x.")
+                   "na jednostkę wzoru: redoks Fe w Fe(CN)₆ oraz metali oznaczonych w tabeli jako aktywne, "
+                   "ograniczony zawartością sodu x.")
         fig = px.bar(x=list(udzialy), y=[v / suma for v in udzialy.values()], text_auto=".2f",
                      color=list(udzialy), color_discrete_sequence=KOLORY, title="Skład podsieci M")
         fig.update_layout(showlegend=False, xaxis_title=None, yaxis_title="udział molowy")
@@ -681,7 +723,17 @@ def zakladka_synteza() -> None:
         f"Roztwór B ({v_b:g} mL):",
         *[f"  {o.wzor:<22} {o.masa_g:8.4f} g  ({o.mmol:.3f} mmol)" for o in odczynniki if o.roztwor == "B"],
     ]
-    k3.download_button("⬇️ Pobierz kartę syntezy (TXT)", "\n".join(karta).encode("utf-8"), "karta_syntezy.txt")
+    docx = karta_docx.karta_syntezy(
+        wzor=wzor, udzialy=udzialy, sole=sole, aktywne=aktywne, n_metali_mmol=n_metali,
+        stosunek_fecn=stosunek_fecn, stosunek_cytrynianu=stosunek_cytr, heksacyjanian=wzor_heks,
+        v_a_ml=v_a, v_b_ml=v_b, sod=sod, woda=woda, m_produktu=m_produktu, s_conf=s_conf,
+        elektrony=elektrony, q_teor=q_teor, odczynniki=odczynniki, stezenia=stezenia,
+    )
+    nazwa = "karta_syntezy_" + "".join(m for m, x in udzialy.items() if x > 0) + f"_{date.today():%Y%m%d}"
+    with k3:
+        st.download_button("⬇️ Pobierz kartę syntezy (Word)", docx, f"{nazwa}.docx", type="primary",
+                           mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+        st.download_button("⬇️ Wersja tekstowa (TXT)", "\n".join(karta).encode("utf-8"), f"{nazwa}.txt")
 
 
 # ---------------------------------------------------------------------------------------------
@@ -690,9 +742,17 @@ def main() -> None:
     with st.sidebar:
         st.markdown("## 🔋 Battery Lab")
         st.caption("Asystent badań nad katodami do ogniw sodowo-jonowych")
-        klucz = st.text_input("Klucz API OpenAlex (opcjonalnie)", value=klucz_z_konfiguracji(), type="password",
-                              help="Bez klucza wszystkie osoby z tej samej sieci dzielą mały darmowy limit dzienny. "
-                                   "Darmowy klucz: openalex.org/settings/api")
+        klucz_serwera = klucz_z_konfiguracji()
+        wpisany = st.text_input(
+            "Klucz API OpenAlex (opcjonalnie)", type="password",
+            placeholder="klucz aplikacji jest już ustawiony" if klucz_serwera else "",
+            help="Bez klucza wszystkie osoby z tej samej sieci dzielą mały darmowy limit dzienny. "
+                 "Darmowy klucz: openalex.org/settings/api",
+        )
+        klucz = wpisany.strip() or klucz_serwera
+        if sekret("APP_PASSWORD") and st.button("Wyloguj", width="stretch"):
+            st.session_state.pop("zalogowany", None)
+            st.rerun()
         st.divider()
         st.markdown(
             "**Co tu jest**\n"
@@ -712,4 +772,5 @@ def main() -> None:
         zakladka_synteza()
 
 
-main()
+if dostep_przyznany():
+    main()

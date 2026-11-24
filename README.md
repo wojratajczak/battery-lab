@@ -17,7 +17,7 @@ pomiarów ogniw z Zenodo, bazie publikacji OpenAlex i plikach z cyklera wgrywany
 |---|---|
 | 📚 Radar literatury | trend publikacji, najczęściej cytowane i najnowsze prace, czasopisma, instytucje, kraje, autorzy, prace z Polski, porównanie kilku tematów |
 | 🔋 Analiza ogniw | wskaźniki cykli, modele degradacji pojemności, prognoza końca życia z niepewnością, test wsteczny, krzywe napięciowe i dQ/dV |
-| ⚗️ Kalkulator syntezy | naważki do współstrącania HE-PBA, stężenia roztworów, entropia konfiguracyjna, masa molowa, wydajność i pojemność teoretyczna |
+| ⚗️ Kalkulator syntezy | naważki do współstrącania HE-PBA, stężenia roztworów, entropia konfiguracyjna, masa molowa, wydajność i pojemność teoretyczna, karta syntezy do pobrania w Wordzie |
 
 ---
 
@@ -130,14 +130,22 @@ polaryzacji, a zanik lub poszerzenie o zmianach w strukturze materiału.
 
 - **Parser wzorów chemicznych:** obsługuje nawiasy, indeksy ułamkowe i hydraty (`·`, `*`). Masy molowe
   liczone są z tablicy mas atomowych.
-- **Produkt:** Na_x M[Fe(CN)₆]·yH₂O, gdzie M to mieszanina metali przejściowych o zadanych udziałach.
+- **Produkt:** Na_x M[Fe(CN)₆]·yH₂O, gdzie M to mieszanina metali o zadanych udziałach. Do wyboru są
+  Ti, V, Cr, Mn, Fe, Ni, Cu, Zr, Nb, Mg, Zn i Al, każdy z kilkoma typowymi prekursorami. Można też wpisać
+  własny wzór soli, np. z inną liczbą cząsteczek wody hydratacyjnej. Wzór jest sprawdzany pod kątem
+  poprawności i obecności danego metalu.
 - **Entropia konfiguracyjna podsieci M:** S = −R·Σ xᵢ·ln xᵢ. Materiał jest niskoentropowy dla S < 1R,
   średnioentropowy dla 1R ≤ S < 1,5R i wysokoentropowy dla S ≥ 1,5R.
-- **Pojemność teoretyczna:** Q = n·F / (3,6·M) [mAh/g], gdzie n = min(x, 1 + Σ x(Mn, Fe, Co)). Redoks
-  zachodzi na Fe w Fe(CN)₆ i na aktywnych metalach w podsieci M. Ni, Cu i Zn traktowane są jako nieaktywne.
-- **Naważki:** sole metali w proporcji do udziałów w podsieci M, heksacyjanożelazian i cytrynian sodu
-  (czynnik chelatujący) w zadanych stosunkach molowych do sumy metali. Wydajność teoretyczna liczona jest
-  na sumę metali M.
+- **Pojemność teoretyczna:** Q = n·F / (3,6·M) [mAh/g], gdzie n = min(x, 1 + Σ xᵢ) po metalach aktywnych
+  redoks. Uwzględniany jest redoks Fe w Fe(CN)₆ oraz metali zaznaczonych w tabeli składu jako aktywne
+  (domyślnie Ti, V, Mn i Fe, a pozostałe jako nieaktywne). Zaznaczenie można zmienić dla każdego metalu.
+- **Naważki:** sole metali w proporcji do udziałów w podsieci M, z uwzględnieniem liczby atomów metalu
+  w jednostce wzoru soli (np. Al₂(SO₄)₃·18H₂O). Heksacyjanożelazian i cytrynian sodu (czynnik chelatujący)
+  dodawane są w zadanych stosunkach molowych do sumy metali. Wydajność teoretyczna liczona jest na sumę
+  metali M.
+- **Karta syntezy (.docx):** dokument A4 generowany w `python-docx`. Zawiera skład, parametry, wartości
+  teoretyczne i tabele naważek z kolumną „Odważono” do uzupełnienia w laboratorium, a także miejsce na
+  przebieg syntezy i obserwacje oraz założenia obliczeń. Wzory chemiczne mają indeksy dolne.
 
 ---
 
@@ -161,12 +169,16 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Klucz API OpenAlex (darmowy, https://openalex.org/settings/api) można wpisać w panelu bocznym albo zapisać
-w `.streamlit/secrets.toml`:
+Opcjonalna konfiguracja w `.streamlit/secrets.toml` (na Streamlit Community Cloud: *App settings → Secrets*):
 
 ```
 OPENALEX_API_KEY = "twój_klucz"
+APP_PASSWORD = "hasło_do_aplikacji"
 ```
+
+- `OPENALEX_API_KEY`: darmowy klucz (https://openalex.org/settings/api), który zwiększa dzienny limit zapytań.
+  Nie jest nigdzie wyświetlany w interfejsie.
+- `APP_PASSWORD`: po ustawieniu aplikacja wymaga hasła przy wejściu. Bez tego wpisu działa bez logowania.
 
 ---
 
@@ -179,7 +191,8 @@ OPENALEX_API_KEY = "twój_klucz"
 | `zenodo_data.py` | pobieranie i parsowanie zbioru z Zenodo |
 | `openalex_client.py` | klient API OpenAlex: filtry, agregacje, abstrakty |
 | `synthesis.py` | parser wzorów, masy molowe, entropia, plan syntezy |
+| `karta_docx.py` | karta syntezy w formacie Word |
 | `demo_data.py` | generator danych symulowanych |
 | `.streamlit/config.toml` | motyw i limit wielkości plików |
 
-**Stack:** Python 3.12 · Streamlit · pandas · NumPy · SciPy · Plotly · Requests
+**Stack:** Python 3.12 · Streamlit · pandas · NumPy · SciPy · Plotly · Requests · python-docx

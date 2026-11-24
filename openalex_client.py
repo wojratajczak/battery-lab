@@ -41,7 +41,7 @@ def zapytanie(parametry: dict, klucz_api: str | None = None) -> dict:
     try:
         odpowiedz = requests.get(API_URL, params=parametry, headers={"User-Agent": USER_AGENT}, timeout=30)
     except requests.RequestException as blad:
-        raise BladOpenAlex(f"Brak połączenia z OpenAlex: {blad}") from blad
+        raise BladOpenAlex(f"Brak połączenia z OpenAlex ({type(blad).__name__}). Spróbuj ponownie za chwilę.") from blad
 
     if odpowiedz.status_code == 429:
         raise BladOpenAlex(
