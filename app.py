@@ -713,16 +713,6 @@ def zakladka_synteza() -> None:
     k1.metric("Stężenie metali w A", f"{stezenia['A [M] (metale)']:.3f} M")
     k2.metric("Stężenie Fe(CN)₆ w B", f"{stezenia['B [M] (Fe(CN)6)']:.3f} M")
 
-    karta = [
-        f"KARTA SYNTEZY ({date.today():%d.%m.%Y})",
-        f"Produkt: {wzor}",
-        f"M = {m_produktu:.2f} g/mol, S_conf = {s_conf / synthesis.R:.3f} R, Q_teor = {q_teor:.0f} mAh/g",
-        "",
-        f"Roztwór A ({v_a:g} mL):",
-        *[f"  {o.wzor:<22} {o.masa_g:8.4f} g  ({o.mmol:.3f} mmol)" for o in odczynniki if o.roztwor == "A"],
-        f"Roztwór B ({v_b:g} mL):",
-        *[f"  {o.wzor:<22} {o.masa_g:8.4f} g  ({o.mmol:.3f} mmol)" for o in odczynniki if o.roztwor == "B"],
-    ]
     docx = karta_docx.karta_syntezy(
         wzor=wzor, udzialy=udzialy, sole=sole, aktywne=aktywne, n_metali_mmol=n_metali,
         stosunek_fecn=stosunek_fecn, stosunek_cytrynianu=stosunek_cytr, heksacyjanian=wzor_heks,
@@ -733,7 +723,6 @@ def zakladka_synteza() -> None:
     with k3:
         st.download_button("⬇️ Pobierz kartę syntezy (Word)", docx, f"{nazwa}.docx", type="primary",
                            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document")
-        st.download_button("⬇️ Wersja tekstowa (TXT)", "\n".join(karta).encode("utf-8"), f"{nazwa}.txt")
 
 
 # ---------------------------------------------------------------------------------------------
